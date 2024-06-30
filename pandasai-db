@@ -1,0 +1,219 @@
+-- -------------------------------------------------------------
+-- TablePlus 5.9.8(548)
+--
+-- https://tableplus.com/
+--
+-- Database: pandasai-db
+-- Generation Time: 2024-06-29 12:50:40.0690
+-- -------------------------------------------------------------
+
+
+-- This script only contains the table creation statements and does not fully represent the table in the database. Do not use it as a backup.
+
+-- Table Definition
+CREATE TABLE "public"."alembic_version" (
+    "version_num" varchar(32) NOT NULL,
+    PRIMARY KEY ("version_num")
+);
+
+-- This script only contains the table creation statements and does not fully represent the table in the database. Do not use it as a backup.
+
+-- Table Definition
+CREATE TABLE "public"."api_keys" (
+    "id" uuid NOT NULL,
+    "organization_id" uuid,
+    "api_key" varchar(255),
+    PRIMARY KEY ("id")
+);
+
+-- This script only contains the table creation statements and does not fully represent the table in the database. Do not use it as a backup.
+
+-- Table Definition
+CREATE TABLE "public"."connector" (
+    "id" uuid NOT NULL,
+    "type" varchar NOT NULL,
+    "config" json,
+    "created_at" timestamp,
+    "user_id" uuid,
+    PRIMARY KEY ("id")
+);
+
+-- This script only contains the table creation statements and does not fully represent the table in the database. Do not use it as a backup.
+
+-- Table Definition
+CREATE TABLE "public"."conversation_message" (
+    "id" uuid NOT NULL,
+    "conversation_id" uuid,
+    "created_at" timestamp,
+    "query" varchar,
+    "response" json,
+    "code_generated" varchar,
+    "label" varchar,
+    "log_id" uuid,
+    "settings" json,
+    PRIMARY KEY ("id")
+);
+
+-- This script only contains the table creation statements and does not fully represent the table in the database. Do not use it as a backup.
+
+-- Table Definition
+CREATE TABLE "public"."dataset" (
+    "id" uuid NOT NULL,
+    "name" varchar,
+    "table_name" varchar,
+    "description" varchar,
+    "created_at" timestamp,
+    "head" json,
+    "user_id" uuid,
+    "organization_id" uuid,
+    "connector_id" uuid,
+    "field_descriptions" json,
+    "filterable_columns" json,
+    PRIMARY KEY ("id")
+);
+
+-- This script only contains the table creation statements and does not fully represent the table in the database. Do not use it as a backup.
+
+-- Table Definition
+CREATE TABLE "public"."dataset_space" (
+    "id" uuid NOT NULL,
+    "dataset_id" uuid,
+    "workspace_id" uuid,
+    PRIMARY KEY ("id")
+);
+
+-- This script only contains the table creation statements and does not fully represent the table in the database. Do not use it as a backup.
+
+-- Table Definition
+CREATE TABLE "public"."organization" (
+    "id" uuid NOT NULL,
+    "name" varchar,
+    "url" varchar,
+    "is_default" bool,
+    "settings" json,
+    PRIMARY KEY ("id")
+);
+
+-- This script only contains the table creation statements and does not fully represent the table in the database. Do not use it as a backup.
+
+-- Table Definition
+CREATE TABLE "public"."organization_membership" (
+    "id" uuid NOT NULL,
+    "user_id" uuid,
+    "organization_id" uuid,
+    "role" varchar,
+    "verified" bool,
+    PRIMARY KEY ("id")
+);
+
+-- This script only contains the table creation statements and does not fully represent the table in the database. Do not use it as a backup.
+
+-- Table Definition
+CREATE TABLE "public"."user" (
+    "id" uuid NOT NULL,
+    "email" varchar(255),
+    "first_name" varchar(255),
+    "created_at" timestamp,
+    "password" varchar(255),
+    "verified" bool,
+    "last_name" varchar(255),
+    PRIMARY KEY ("id")
+);
+
+-- This script only contains the table creation statements and does not fully represent the table in the database. Do not use it as a backup.
+
+-- Table Definition
+CREATE TABLE "public"."user_conversation" (
+    "id" uuid NOT NULL,
+    "workspace_id" uuid,
+    "user_id" uuid,
+    "created_at" timestamp,
+    "valid" bool,
+    PRIMARY KEY ("id")
+);
+
+-- This script only contains the table creation statements and does not fully represent the table in the database. Do not use it as a backup.
+
+-- Table Definition
+CREATE TABLE "public"."user_space" (
+    "workspace_id" uuid NOT NULL,
+    "user_id" uuid NOT NULL,
+    PRIMARY KEY ("workspace_id","user_id")
+);
+
+-- This script only contains the table creation statements and does not fully represent the table in the database. Do not use it as a backup.
+
+-- Table Definition
+CREATE TABLE "public"."workspace" (
+    "id" uuid NOT NULL,
+    "name" varchar,
+    "user_id" uuid,
+    "organization_id" uuid,
+    "slug" varchar,
+    "created_at" timestamp,
+    PRIMARY KEY ("id")
+);
+
+
+
+-- Indices
+CREATE UNIQUE INDEX alembic_version_pkc ON public.alembic_version USING btree (version_num);
+ALTER TABLE "public"."api_keys" ADD FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id");
+
+
+-- Indices
+CREATE INDEX ix_api_keys_id ON public.api_keys USING btree (id);
+ALTER TABLE "public"."connector" ADD FOREIGN KEY ("user_id") REFERENCES "public"."user"("id");
+
+
+-- Indices
+CREATE UNIQUE INDEX uq_connector_id ON public.connector USING btree (id);
+CREATE INDEX ix_connector_id ON public.connector USING btree (id);
+ALTER TABLE "public"."conversation_message" ADD FOREIGN KEY ("conversation_id") REFERENCES "public"."user_conversation"("id");
+
+
+-- Indices
+CREATE INDEX ix_conversation_message_id ON public.conversation_message USING btree (id);
+ALTER TABLE "public"."dataset" ADD FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id");
+ALTER TABLE "public"."dataset" ADD FOREIGN KEY ("connector_id") REFERENCES "public"."connector"("id");
+ALTER TABLE "public"."dataset" ADD FOREIGN KEY ("user_id") REFERENCES "public"."user"("id");
+
+
+-- Indices
+CREATE INDEX ix_dataset_id ON public.dataset USING btree (id);
+ALTER TABLE "public"."dataset_space" ADD FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id");
+ALTER TABLE "public"."dataset_space" ADD FOREIGN KEY ("dataset_id") REFERENCES "public"."dataset"("id");
+
+
+-- Indices
+CREATE INDEX ix_dataset_space_id ON public.dataset_space USING btree (id);
+
+
+-- Indices
+CREATE INDEX ix_organization_id ON public.organization USING btree (id);
+CREATE INDEX ix_organization_name ON public.organization USING btree (name);
+ALTER TABLE "public"."organization_membership" ADD FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id");
+ALTER TABLE "public"."organization_membership" ADD FOREIGN KEY ("user_id") REFERENCES "public"."user"("id");
+
+
+-- Indices
+CREATE INDEX ix_organization_membership_id ON public.organization_membership USING btree (id);
+
+
+-- Indices
+CREATE UNIQUE INDEX ix_user_email ON public."user" USING btree (email);
+CREATE INDEX ix_user_id ON public."user" USING btree (id);
+ALTER TABLE "public"."user_conversation" ADD FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id");
+ALTER TABLE "public"."user_conversation" ADD FOREIGN KEY ("user_id") REFERENCES "public"."user"("id");
+
+
+-- Indices
+CREATE INDEX ix_user_conversation_id ON public.user_conversation USING btree (id);
+ALTER TABLE "public"."user_space" ADD FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id");
+ALTER TABLE "public"."user_space" ADD FOREIGN KEY ("user_id") REFERENCES "public"."user"("id");
+ALTER TABLE "public"."workspace" ADD FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id");
+ALTER TABLE "public"."workspace" ADD FOREIGN KEY ("user_id") REFERENCES "public"."user"("id");
+
+
+-- Indices
+CREATE INDEX ix_workspace_id ON public.workspace USING btree (id);

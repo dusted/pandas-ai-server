@@ -1,0 +1,31 @@
+version: '3.8'
+services:
+  postgresql:
+    image: postgres:14.2-alpine
+    environment:
+      POSTGRES_USER: pandasai
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: pandasai-db
+    ports:
+      - "5430:5432"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    restart: always
+
+  server:
+    container_name: pandabi-backend
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    restart: always
+    env_file:
+      - ./.env
+    depends_on:
+      - postgresql
+    command: "/bin/bash startup.sh"
+
+networks:
+  default:
+    driver: bridge
