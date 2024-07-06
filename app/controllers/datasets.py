@@ -11,6 +11,7 @@ from app.schemas.responses.users import UserInfo
 import csv
 from core.database.transactional import Propagation, Transactional
 from fastapi.responses import FileResponse
+from typing import Optional
 
 class DatasetController(BaseController[Dataset]):
     def __init__(
@@ -72,47 +73,77 @@ class DatasetController(BaseController[Dataset]):
     
 
     @Transactional(propagation=Propagation.REQUIRED)
-    async def create_dataset(self, file: UploadFile, name: str, description: str, user: UserInfo):
-        headers = []
-        rows = []
-        try:
+    async def create_dataset(
+        self, 
+        file: Optional[UploadFile] = None, 
+        name: str = None, 
+        description: str = None, 
+        user: UserInfo = None, 
+        connector_type: ConnectorType = ConnectorType.CSV,
+        config: dict = None,
+        head: dict = None,
+        table_name: str = None
+    ):
+        if connector_type == ConnectorType.CSV:
+            if not file:
+                raise HTTPException(status_code=400, detail="CSV file is required")
+            headers = []
+            rows = []
+            try:
+                file.file.seek(0)
+                csvfile = (line.decode('utf-8') for line in file.file)
+                csvreader = csv.reader(csvfile)
+                headers = next(csvreader, None)
+                if headers is None:
+                    raise HTTPException(status_code=400, detail="CSV file does not contain headers")
+                for row in csvreader:
+                    rows.append(row)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
+
+            head = {
+                "headers": headers,
+                "rows": rows[:5]
+            }
+
+            dataset = await self.dataset_repository.create_dataset(
+                user_id=user.id,
+                organization_id=user.organizations[0].id,
+                name=name,
+                description=description,
+                connector_type=connector_type,
+                config={},
+                head=head,
+            )
+
+            dataset_id = dataset.id
+            file_path = os.path.join(os.getcwd(), 'data', f"{dataset_id}.csv")
+            # Rewind the file and save it to disk
             file.file.seek(0)
-            csvfile = (line.decode('utf-8') for line in file.file)
-            csvreader = csv.reader(csvfile)
-            headers = next(csvreader, None)
-            if headers is None:
-                raise HTTPException(status_code=400, detail="CSV file does not contain headers")
-            for row in csvreader:
-                rows.append(row)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
+            try:
+                with open(file_path, "wb") as buffer:
+                    shutil.copyfileobj(file.file, buffer)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
+            
+            await self.space_repository.add_dataset_to_space(workspace_id=user.space.id, dataset_id=dataset_id)
 
-        head = {
-            "headers": headers,
-            "rows": rows[:5]
-        }
+        elif connector_type == ConnectorType.POSTGRES:
+            if not config or not head:
+                raise HTTPException(status_code=400, detail="Config and head are required for PostgreSQL datasets")
 
-        dataset = await self.dataset_repository.create_dataset(
-            user_id=user.id,
-            organization_id=user.organizations[0].id,
-            name=name,
-            description=description,
-            connector_type=ConnectorType.CSV,
-            config={},
-            head=head,
-        )
+            dataset = await self.dataset_repository.create_dataset(
+                user_id=user.id,
+                organization_id=user.organizations[0].id,
+                name=name,
+                description=description,
+                connector_type=connector_type,
+                config=config,
+                head=head,
+                table_name=table_name,
+            )
 
-        dataset_id = dataset.id
-        file_path = os.path.join(os.getcwd(), 'data', f"{dataset_id}.csv")
-        # Rewind the file and save it to disk
-        file.file.seek(0)
-        try:
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
-        
-        await self.space_repository.add_dataset_to_space(workspace_id=user.space.id,dataset_id=dataset_id)
+            await self.space_repository.add_dataset_to_space(workspace_id=user.space.id, dataset_id=dataset.id)
 
         return DatasetsDetailsResponseModel(dataset=dataset)
     

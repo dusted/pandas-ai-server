@@ -24,6 +24,7 @@ from core.fastapi.middlewares import (
     SQLAlchemyMiddleware,
 )
 from core.utils.dataframe import convert_dataframe_to_dict
+from core.utils.database_utils import load_data_from_db 
 
 
 def on_auth_error(request: Request, exc: Exception):
@@ -107,12 +108,29 @@ def read_csv_files_from_directory(directory_path):
     return dataframes
 
 
+#async def init_database():
+#    user = await init_user()
+#    directory_path = os.path.join(os.path.dirname(__file__), "..", "data")
+#    datasets = read_csv_files_from_directory(directory_path)
+#    space_repository = WorkspaceRepository(Workspace, db_session=session)
+#
+#    space = await space_repository.create_default_space_in_org(
+#        organization_id=user.memberships[0].organization_id, user_id=user.id
+#    )
+#    dataset_repository = DatasetRepository(Dataset, db_session=session)
+#    space_controller = WorkspaceController(
+#        space_repository=space_repository, dataset_repository=dataset_repository
+#    )
+#
+#    await space_controller.reset_space_datasets(space.id)
+#    await space_controller.add_csv_datasets(datasets, user, space.id)
+
+def convert_dataframe_to_dict(df: pd.DataFrame) -> dict:
+    return df.to_dict(orient='records')
+
 async def init_database():
     user = await init_user()
-    directory_path = os.path.join(os.path.dirname(__file__), "..", "data")
-    datasets = read_csv_files_from_directory(directory_path)
     space_repository = WorkspaceRepository(Workspace, db_session=session)
-
     space = await space_repository.create_default_space_in_org(
         organization_id=user.memberships[0].organization_id, user_id=user.id
     )
@@ -120,9 +138,21 @@ async def init_database():
     space_controller = WorkspaceController(
         space_repository=space_repository, dataset_repository=dataset_repository
     )
-
     await space_controller.reset_space_datasets(space.id)
-    await space_controller.add_csv_datasets(datasets, user, space.id)
+    # Example usage of loading data from PostgreSQL
+    query = "SELECT * FROM loan_payments_data"
+    df = await load_data_from_db(query)
+    # Convert DataFrame to list of dictionaries
+    datasets = df.to_dict(orient='records')
+
+    #Convert DataFrame to list of dictionaries with 'head' key for consistency
+    datasets = [{
+        "head": convert_dataframe_to_dict(df.head()),
+        "file_name": "loan_payments_data",  # Placeholder, as you won't have actual file names
+        "file_path": "database_query"       # Placeholder, as you won't have actual file paths
+    }]
+
+    await space_controller.add_datasets_from_db(datasets, user, space.id)
 
 
 def create_app() -> FastAPI:

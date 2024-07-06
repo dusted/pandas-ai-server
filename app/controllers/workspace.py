@@ -43,6 +43,35 @@ class WorkspaceController(BaseController[Workspace]):
                 dataset_id=dataset.id, workspace_id=workspace_id
             )
 
+    @Transactional(propagation=Propagation.REQUIRED_NEW)
+    async def add_datasets_from_db(self, datasets: List[dict], user: User, workspace_id: str):
+        if datasets:
+            # Extract headers and rows for the head of the dataset
+            headers = list(datasets[0].keys())
+            rows = [list(dataset.values()) for dataset in datasets[:5]]  # Only take the first 5 rows for the head
+
+            head = {
+                "headers": headers,
+                "rows": rows
+            }
+            config = {
+                "query": "SELECT * FROM loan_payments_data"  # Adjust the query or config as needed
+            }
+            dataset_obj = await self.dataset_repository.create_dataset(
+                user_id=user.id,
+                organization_id=user.memberships[0].organization_id,
+                name="loan_payments_data",  # or another appropriate name
+                table_name="loan_payments_data",
+                description="Dataset from PostgreSQL",
+                connector_type=ConnectorType.POSTGRES,
+                config=config,
+                head=head,
+            )
+            await self.space_repository.add_dataset_to_space(
+                dataset_id=dataset_obj.id, workspace_id=workspace_id
+            )
+
+
 
     async def get_workspace_by_id(self, workspace_id: str):
         workspace = await self.space_repository.get_by_id(id=workspace_id)

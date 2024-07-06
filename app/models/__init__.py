@@ -31,6 +31,7 @@ class DataframeLoadStatus(Enum):
 
 class ConnectorType(Enum):
     CSV = "CSV"
+    POSTGRES = "POSTGRES"
 
 
 class User(Base):

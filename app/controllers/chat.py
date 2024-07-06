@@ -5,10 +5,9 @@ from typing import List
 import pandas as pd
 from pandasai import Agent
 from pandasai.connectors.pandas import PandasConnector
-from pandasai.connectors.sql import PostgreSQLConnector
 from pandasai.helpers.path import find_project_root
 from pandasai.llm.openai import OpenAI
-
+  # Import the function
 from app.models import Dataset, User
 from app.repositories import UserRepository
 from app.repositories.conversation import ConversationRepository
@@ -19,12 +18,14 @@ from app.schemas.responses.users import UserInfo
 from app.utils.memory import prepare_conv_memory
 from core.constants import CHAT_FALLBACK_MESSAGE
 from core.controller import BaseController
+from core.utils.database_utils import load_data_from_db
 from core.database.transactional import Propagation, Transactional
 from core.utils.dataframe import load_df
 from core.utils.json_encoder import jsonable_encoder
 from core.utils.response_parser import JsonResponseParser
 from core.config import config as env_config
-
+from core.database.session import session
+from sqlalchemy.sql import text
 
 class ChatController(BaseController[User]):
     def __init__(
@@ -68,18 +69,45 @@ class ChatController(BaseController[User]):
             )
             memory = prepare_conv_memory(conversation_messages)
 
+        #if the init_database in server.js uses the CSV method then use this connector
+        #connectors = []
+        #for dataset in datasets:
+        #    config = dataset.connector.config
+        #    df = pd.read_csv(config["file_path"])
+        #    connector = PandasConnector(
+        #        {"original_df": df},
+        #        name=dataset.name,
+        #        description=dataset.description,
+        #        custom_head=(load_df(dataset.head) if dataset.head else None),
+        #        field_descriptions=dataset.field_descriptions,
+        #    )
+        #    connectors.append(connector)
+
+        #if the init_database in server.js uses the POSTGRES method then use this connector
         connectors = []
         for dataset in datasets:
-            config = dataset.connector.config
-            df = pd.read_csv(config["file_path"])
-            connector = PandasConnector(
-                {"original_df": df},
-                name=dataset.name,
-                description=dataset.description,
-                custom_head=(load_df(dataset.head) if dataset.head else None),
-                field_descriptions=dataset.field_descriptions,
-            )
-            connectors.append(connector)
+            print("running chat dataset query")
+            query = f"SELECT * FROM {dataset.table_name}"
+            print(query)
+            try:
+                df = await load_data_from_db(query)
+                print(f"DataFrame shape: {df.shape}")
+                print(f"DataFrame head: {df.head()}")
+                connector = PandasConnector(
+                    {"original_df": df},
+                    name=dataset.name,
+                    description=dataset.description,
+                    custom_head=(load_df(dataset.head) if dataset.head else None),
+                    field_descriptions=dataset.field_descriptions,
+                )
+                print(f"Creating PandasConnector for dataset: {dataset.name}")
+                print(f"Connector name: {connector.name}")
+                print(f"Connector description: {connector.description}")
+                print(f"Connector custom head: {connector.custom_head}")
+                print(f"Connector field descriptions: {connector.field_descriptions}")
+                connectors.append(connector)
+            except Exception as e:
+                print(f"Failed to load data for table {dataset.table_name}: {e}")
 
         path_plot_directory = find_project_root() + "/exports/" + str(conversation_id)
 

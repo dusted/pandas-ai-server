@@ -18,6 +18,7 @@ class DatasetRepository(BaseRepository[Dataset]):
         config,
         head: dict,
         description: str = "",
+        table_name: str = None
     ):
         connector = Connector(type=connector_type.value, config=config, user_id=user_id)
         self.session.add(connector)
@@ -30,7 +31,7 @@ class DatasetRepository(BaseRepository[Dataset]):
             user_id=user_id,
             organization_id=organization_id,
             connector_id=connector.id,
-            description=description
+            description=description,
         )
 
         self.session.add(dataset)
