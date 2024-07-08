@@ -1,10 +1,14 @@
 import os
-import uvicorn
 from dotenv import load_dotenv
 
 load_dotenv()
 
 from core.config import config
+import uvicorn
+
+# Print the loaded environment variables to verify
+print(f"POSTGRES_URL: {config.POSTGRES_URL}")
+print(f"CHAT_DB_URL: {config.CHAT_DB_URL}")
 
 if __name__ == "__main__":
     uvicorn.run(
