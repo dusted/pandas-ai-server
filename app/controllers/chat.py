@@ -86,25 +86,30 @@ class ChatController(BaseController[User]):
         #if the init_database in server.js uses the POSTGRES method then use this connector
         connectors = []
         for dataset in datasets:
-            print("running chat dataset query")
             query = f"SELECT * FROM {dataset.table_name}"
             print(query)
             try:
                 df = await load_data_from_db(query)
-                print(f"DataFrame shape: {df.shape}")
-                print(f"DataFrame head: {df.head()}")
+                print("data loaded")
+                custom_head = load_df(dataset.head) if dataset.head else None
+                # Print the custom head, if available
+                if custom_head is not None:
+                    print("Custom Head (from dataset.head):")
+                    print(custom_head)
+                else:
+                    print("No Custom Head available (dataset.head is None)")
+                print(f"Dataset Name: {dataset.name}")
+                print(f"Dataset Description: {dataset.description}")
+                print(f"Field Descriptions: {dataset.field_descriptions}")
+                print(df)
                 connector = PandasConnector(
                     {"original_df": df},
                     name=dataset.name,
                     description=dataset.description,
-                    custom_head=(load_df(dataset.head) if dataset.head else None),
+                    #custom_head=(load_df(dataset.head) if dataset.head else None),
                     field_descriptions=dataset.field_descriptions,
                 )
-                print(f"Creating PandasConnector for dataset: {dataset.name}")
-                print(f"Connector name: {connector.name}")
-                print(f"Connector description: {connector.description}")
-                print(f"Connector custom head: {connector.custom_head}")
-                print(f"Connector field descriptions: {connector.field_descriptions}")
+                print(f"Connector loaded with DataFrame of shape: {connector.pandas_df.shape}")
                 connectors.append(connector)
             except Exception as e:
                 print(f"Failed to load data for table {dataset.table_name}: {e}")
@@ -123,10 +128,16 @@ class ChatController(BaseController[User]):
             config["llm"] = llm
 
         agent = Agent(connectors, config=config)
+        print("Agent initialized. Processing query...")
+        print(connectors)
+
         if memory:
             agent.context.memory = memory
+        print("Agent initialized. Processing query...")
 
         response = agent.chat(chat_request.query)
+        print("Agent response:", response)
+
 
         if os.path.exists(path_plot_directory):
             shutil.rmtree(path_plot_directory)

@@ -182,7 +182,7 @@ class GenerateChatPipeline:
             - 'value': The value of the output.
         """
         self._logger.log(f"Executing Pipeline: {self.__class__.__name__}")
-
+        print(f"Executing Pipeline: {self.__class__.__name__}")
         # Reset intermediate values
         self.context.reset_intermediate_values()
 
@@ -202,13 +202,15 @@ class GenerateChatPipeline:
                 "last_prompt_id": input.prompt_id,
             }
         )
+        print("Intermediate values after adding to context:", self.context.intermediate_values)
+
         try:
             output = self.code_generation_pipeline.run(input)
 
             self.query_exec_tracker.success = True
 
             self.query_exec_tracker.publish()
-
+            print(f"Pipeline generate code output: {output}")
             return output
 
         except Exception as e:
@@ -239,7 +241,7 @@ class GenerateChatPipeline:
             - 'value': The value of the output.
         """
         self._logger.log(f"Executing Pipeline: {self.__class__.__name__}")
-
+        print(f"run_execute_code Executing Pipeline: {self.__class__.__name__}")
         # Reset intermediate values
         self.context.reset_intermediate_values()
 
@@ -296,6 +298,10 @@ class GenerateChatPipeline:
             - 'value': The value of the output.
         """
         self._logger.log(f"Executing Pipeline: {self.__class__.__name__}")
+        print(f"run Executing Pipeline: {self.__class__.__name__}")
+
+        print(f"run Executing Pipeline DATA: {self.context.dfs}")
+        
 
         # Reset intermediate values
         self.context.reset_intermediate_values()
@@ -307,6 +313,20 @@ class GenerateChatPipeline:
 
         self.query_exec_tracker.add_dataframes(self.context.dfs)
 
+        # Log the DataFrame shapes before running the pipeline
+        for df in self.context.dfs:
+            print(f"Connector: {df}")
+            if hasattr(df, 'pandas_df'):
+                pandas_df = df.pandas_df
+                print(f"DataFrame shape: {pandas_df.shape}")
+                print(f"DataFrame columns: {pandas_df.columns.tolist()}")
+                print(f"DataFrame data types:\n{pandas_df.dtypes}")
+                print(f"First few rows of the DataFrame:\n{pandas_df.head()}")
+                print(f"Summary statistics of the DataFrame:\n{pandas_df.describe(include='all')}")
+                print(f"Summary statistics of the DataFrame:\n{pandas_df.head(20)}")
+            else:
+                print("No DataFrame found in this connector.")
+
         # Add Query to memory
         self.context.memory.add(input.query, True)
 
@@ -316,10 +336,16 @@ class GenerateChatPipeline:
                 "last_prompt_id": input.prompt_id,
             }
         )
+        print("Intermediate values after adding to context:", self.context.intermediate_values)
+
         try:
             if self.judge:
                 code = self.code_generation_pipeline.run(input)
-
+                print("code_generation_pipeline pipeline run:")
+                if 'rows' in code['value']:
+                    print(f"code_generation_pipeline rows count: {len(code['value']['rows'])}")
+                else:
+                    print("No rows found in code generation output")
                 retry_count = 0
                 while retry_count < self.context.config.max_retries:
                     if self.judge.evaluate(query=input.query, code=code):
@@ -330,15 +356,38 @@ class GenerateChatPipeline:
                 output = self.code_execution_pipeline.run(code)
 
             elif self.code_execution_pipeline:
+                print(f"FULL code_execution_pipeline: {self.code_execution_pipeline}")
+                
                 output = (
                     self.code_generation_pipeline | self.code_execution_pipeline
                 ).run(input)
+
+
+                print("code_execution_pipeline  run:")
+
+                if 'rows' in output['value']:
+                    print(f"code_execution_pipeline pipeline rows count: {len(output['value']['rows'])}")
+                else:
+                    print("No rows found in combined pipeline output")
             else:
                 output = self.code_generation_pipeline.run(input)
+                print("code_generation_pipeline pipeline run (no execution):")
+                if 'rows' in output['value']:
+                    print(f"Code generation rows count: {len(output['value']['rows'])}")
+                else:
+                    print("No rows found in code generation output (no execution)")
 
             self.query_exec_tracker.success = True
 
             self.query_exec_tracker.publish()
+            print(output)
+            if output['type'] == 'dataframe':
+                rows = output['value']['rows']
+                self._logger.log(f"Number of rows in run response: {len(rows)}")
+                print(f"Number of rows in run response: {len(rows)}")
+                for row in rows:
+                    self._logger.log(f"Row: {row}")
+                    print(f"Row: {row}")
 
             return output
 

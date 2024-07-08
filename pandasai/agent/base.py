@@ -69,7 +69,11 @@ class BaseAgent:
         self.conversation_id = uuid.uuid4()
 
         self.dfs = self.get_dfs(dfs)
-
+        print(f"MY DataFrames: {self.dfs}")
+        for df in self.dfs:
+            if isinstance(df, PandasConnector):
+                print(f"PandasConnector NEW loaded with DataFrame of shape: {df.pandas_df.shape}")
+        
         # Instantiate the context
         self.config = self.get_config(config)
         self.context = PipelineContext(
@@ -79,10 +83,22 @@ class BaseAgent:
             vectorstore=vectorstore,
         )
 
+        print("context config")
+        print(self.config)
+        print("end config printing")
+
+
+        print("context printing")
+        print(self.context)
+        print("end context printing")
+
+
         # Instantiate the logger
         self.logger = Logger(
             save_logs=self.config.save_logs, verbose=self.config.verbose
         )
+
+        self.logger.log("Logger initialized.")
 
         # Instantiate the vectorstore
         self._vectorstore = vectorstore
@@ -169,19 +185,25 @@ class BaseAgent:
         """
         # Inline import to avoid circular import
         from pandasai.smart_dataframe import SmartDataframe
-
+        print("NOW PRINT DFS")
+        print(dfs)
         # If only one dataframe is passed, convert it to a list
         if not isinstance(dfs, list):
             dfs = [dfs]
 
+        print("about to loop through")
         connectors = []
         for df in dfs:
             if isinstance(df, BaseConnector):
                 connectors.append(df)
+                print(f"BaseConnector DataFrame shape: {df.pandas_df.shape}")
             elif isinstance(df, (pd.DataFrame, pd.Series, list, dict, str)):
                 connectors.append(PandasConnector({"original_df": df}))
+                print("THIS IS THE PANAS DATAFRAME")
+                print(df.dataframe)
             elif df_type(df) == "modin":
                 connectors.append(PandasConnector({"original_df": df}))
+                print("THIS IS THE modin CONNECTOR")
             elif isinstance(df, SmartDataframe) and isinstance(
                 df.dataframe, BaseConnector
             ):
@@ -281,7 +303,19 @@ class BaseAgent:
                 query, output_type, self.conversation_id, self.last_prompt_id
             )
 
-            return self.pipeline.run(pipeline_input)
+            #return self.pipeline.run(pipeline_input)
+
+            response = self.pipeline.run(pipeline_input)
+            self.logger.log(f"Agent response: {response}")
+
+            # Log detailed response
+            if response['type'] == 'dataframe':
+                rows = response['value']['rows']
+                self.logger.log(f"YES Number of rows in response: {len(rows)}")
+                for row in rows:
+                    self.logger.log(f"Row: {row}")
+
+            return response
 
         except Exception as exception:
             return (

@@ -27,3 +27,8 @@ class CodeExecutionPipelineInput:
         self.conversation_id = conversation_id
         self.prompt_id = prompt_id
         self.query = ""
+
+        self.log_input_details()
+
+    def log_input_details(self):
+        print(f"CodeExecutionPipelineInput initialized with code={self.code}, output_type={self.output_type}, conversation_id={self.conversation_id}, prompt_id={self.prompt_id}, query={self.query}")

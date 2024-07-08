@@ -45,6 +45,7 @@ class ResultParsing(BaseLogicUnit):
 
         parser = self.response_parser(pipeline_context, logger=kwargs.get("logger"))
         result = parser.parse(result)
+        
         return LogicUnitOutput(result, True, "Results parsed successfully")
 
     def _add_result_to_memory(self, result: dict, context: PipelineContext):

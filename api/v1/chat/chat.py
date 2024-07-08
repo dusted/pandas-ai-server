@@ -18,4 +18,5 @@ async def chat(
     user: UserInfo = Depends(get_current_user),
 ) -> APIResponse[ChatResponse]:
     response = await chat_controller.chat(user, chat_request)
+    print("API response data:", response)
     return APIResponse(data=response, message="Chat response returned successfully!")

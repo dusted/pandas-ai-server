@@ -54,8 +54,7 @@ class CodeExecution(BaseLogicUnit):
 
     def execute(self, input: Any, **kwargs) -> Any:
         """
-        This method will return output according to
-        Implementation.
+        This method will return output according to Implementation.
 
         :param input: Your input data.
         :param kwargs: A dictionary of keyword arguments.
@@ -72,44 +71,68 @@ class CodeExecution(BaseLogicUnit):
         self._current_code_executed = self.context.get("current_code_executed")
         self.logger: Logger = kwargs.get("logger")
 
+        print(f"Starting execution with input: {input}")
+        print(f"Context: {self.context}")
+        print(f"Number of dataframes: {len(self._dfs)}")
+        print(f"Config: {self._config}")
+        print(f"Additional dependencies: {self._additional_dependencies}")
+        print(f"Current code executed: {self._current_code_executed}")
+
         # Execute the code
         code_context = CodeExecutionContext(
             self.context.get("last_prompt_id"), self.context.skills_manager
         )
+        print(f"Code context: {code_context}")
 
         retry_count = 0
         code_to_run = input
         result = None
         while retry_count <= self.context.config.max_retries:
+            print(f"Attempt {retry_count + 1} to execute code:")
+            print(f"Code to run:\n{code_to_run}")
             try:
                 result = self.execute_code(code_to_run, code_context)
+                print(f"Execution result: {result}")
+
                 if self.context.get("output_type") != "" and (
                     output_helper := self.context.get("output_type")
                 ):
+                    print(f"Validating output with type: {output_helper}")
                     (validation_ok, validation_errors) = OutputValidator.validate(
                         output_helper, result
                     )
 
                     if not validation_ok:
+                        print(f"Validation failed with errors: {validation_errors}")
                         raise InvalidLLMOutputType(validation_errors)
+                    else:
+                        print("Output validation successful")
 
                 if not OutputValidator.validate_result(result):
+                    print(f"Result validation failed. Result: {result}")
                     raise InvalidOutputValueMismatch(
                         f'Value type {type(result["value"])} must match with type {result["type"]}'
                     )
+                else:
+                    print("Result validation successful")
 
                 break
 
             except Exception as e:
                 traceback_errors = traceback.format_exc()
                 self.logger.log(f"Failed with error: {traceback_errors}", logging.ERROR)
+                print(f"Execution failed with error: {e}")
+                print(f"Traceback:\n{traceback_errors}")
+
                 if self.on_failure:
+                    print("Calling on_failure callback")
                     self.on_failure(code_to_run, traceback_errors)
 
                 if (
                     not self.context.config.use_error_correction_framework
                     or retry_count >= self.context.config.max_retries
                 ):
+                    print("Max retries reached or error correction framework disabled. Raising exception.")
                     raise e
 
                 retry_count += 1
@@ -117,15 +140,16 @@ class CodeExecution(BaseLogicUnit):
                 self.logger.log(
                     f"Failed to execute code retrying with a correction framework "
                     f"[retry number: {retry_count}]",
-                    level=logging.WARNING,
+                    level=logging.WARNING
                 )
+                print(f"Retrying with correction framework. Retry number: {retry_count}")
 
-                # TODO - Move this implement to main execute function
-                # Temporarily done for test cases this is to be fixed move to the main function
                 code_to_run = self._retry_run_code(
                     code_to_run, self.context, self.logger, e
                 )
+                print(f"New code after retry:\n{code_to_run}")
 
+        print(f"Final result: {result}")
         return LogicUnitOutput(
             result,
             True,

@@ -31,7 +31,8 @@ class CodeGenerator(BaseLogicUnit):
         logger: Logger = kwargs.get("logger")
 
         code = pipeline_context.config.llm.generate_code(input, pipeline_context)
-
+        print("CODE EXECUTION", code)
+        print("CODE end")
         pipeline_context.add("last_code_generated", code)
         logger.log(
             f"""Prompt used:

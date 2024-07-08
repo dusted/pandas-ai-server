@@ -43,6 +43,17 @@ class PipelineContext:
         self.vectorstore = vectorstore
 
         self._initial_values = initial_values
+        
+
+        # Log initial state
+        self.log_initial_state()
+
+
+    def log_initial_state(self):
+        print(f"HELLO PipelineContext initialized with {len(self.dfs)} DataFrames.")
+        for df in self.dfs:
+            if isinstance(df, BaseConnector):
+                print(f"BaseConnector with DataFrame shape: {df.pandas_df.shape}")
 
     def reset_intermediate_values(self):
         self.intermediate_values = self._initial_values or {}

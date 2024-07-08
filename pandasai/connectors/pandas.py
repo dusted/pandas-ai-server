@@ -77,6 +77,8 @@ class PandasConnector(BaseConnector):
             self.pandas_df = FileImporter.import_from_file(df)
         else:
             raise ValueError("Invalid input data. We cannot convert it to a dataframe.")
+        
+        print(f"PandasConnector loaded DataFrame with shape: {self.pandas_df.shape}")
 
     def _load_connector_config(
         self, config: Union[PandasConnectorConfig, dict]
@@ -93,7 +95,7 @@ class PandasConnector(BaseConnector):
         return PandasConnectorConfig(**config)
 
     @cache
-    def head(self, n: int = 5) -> pd.DataFrame:
+    def head(self, n: int = 8) -> pd.DataFrame:
         """
         Return the head of the data source that the connector is connected to.
         This information is passed to the LLM to provide the schema of the
