@@ -2,4 +2,4 @@ build:
   docker:
     web: Dockerfile
 run:
-  web: "/bin/bash startup.sh"
+  web: "/startup.sh"
