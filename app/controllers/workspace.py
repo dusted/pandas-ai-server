@@ -1,3 +1,4 @@
+import os
 from fastapi import status, HTTPException
 from typing import List
 from app.models import ConnectorType, Workspace, User
@@ -54,14 +55,20 @@ class WorkspaceController(BaseController[Workspace]):
                 "headers": headers,
                 "rows": rows
             }
+            # Read dataset name and query from environment variables
+            dataset_name = os.getenv("DATASET_NAME")
+            if not dataset_name:
+                raise ValueError("Environment variable DATASET_NAME is not set")
+            dataset_query = f"SELECT * FROM {dataset_name}"
+
             config = {
-                "query": "SELECT * FROM loan_payments_data"  # Adjust the query or config as needed
+                "query": dataset_query
             }
             dataset_obj = await self.dataset_repository.create_dataset(
                 user_id=user.id,
                 organization_id=user.memberships[0].organization_id,
-                name="loan_payments_data",  # or another appropriate name
-                table_name="loan_payments_data",
+                name=dataset_name,  # or another appropriate name
+                table_name=dataset_name,
                 description="Dataset from PostgreSQL",
                 connector_type=ConnectorType.POSTGRES,
                 config=config,

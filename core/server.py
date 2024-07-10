@@ -139,8 +139,13 @@ async def init_database():
         space_repository=space_repository, dataset_repository=dataset_repository
     )
     await space_controller.reset_space_datasets(space.id)
+
     # Example usage of loading data from PostgreSQL
-    query = "SELECT * FROM loan_payments_data"
+    dataset_name = os.getenv("DATASET_NAME")
+    if not dataset_name:
+        raise ValueError("Environment variable DATASET_NAME is not set")
+    query = f"SELECT * FROM {dataset_name}"
+    
     df = await load_data_from_db(query)
     # Convert DataFrame to list of dictionaries
     datasets = df.to_dict(orient='records')
@@ -148,10 +153,10 @@ async def init_database():
     #Convert DataFrame to list of dictionaries with 'head' key for consistency
     datasets = [{
         "head": convert_dataframe_to_dict(df.head()),
-        "file_name": "loan_payments_data",  # Placeholder, as you won't have actual file names
+        "file_name": dataset_name,  # Placeholder, as you won't have actual file names
         "file_path": "database_query"       # Placeholder, as you won't have actual file paths
     }]
-
+    print(query)
     await space_controller.add_datasets_from_db(datasets, user, space.id)
 
 
